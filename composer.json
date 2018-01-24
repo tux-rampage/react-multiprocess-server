@@ -1,0 +1,28 @@
+{
+    "name": "tuxrampage/react-multiprocess-server",
+    "description": "Handle react socket connections in multiple processes",
+    "type": "library",
+    "license": "LGPL",
+    "authors": [
+        {
+            "name": "Axel Helmert",
+            "email": "tux-rampage@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "react/socket": "^0.8.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "React\\MultiProcess\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ReactTest\\MultiProcess\\": "test/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^6.5"
+    }
+}
