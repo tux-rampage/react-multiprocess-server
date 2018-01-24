@@ -8,7 +8,7 @@
 namespace React\MultiProcess;
 
 /**
- * Abstracts PCNTL to make it's calls testable
+ * Abstracts PCNTL-Functions to make it's calls testable
  *
  * @ignoreCoverage
  */
