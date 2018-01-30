@@ -24,9 +24,43 @@ class DeferredLoop implements LoopInterface
      */
     private $loop = null;
 
+    /**
+     * @var DeferredTimer[]
+     */
+    private $timers = [];
+
+    /**
+     * @param LoopFactoryInterface|null $factory
+     * @uses DefaultLoopFactory
+     */
     public function __construct(LoopFactoryInterface $factory = null)
     {
         $this->factory = $factory ?? new DefaultLoopFactory();
+    }
+
+    private function addDeferredTimers()
+    {
+        foreach ($this->timers as $timer) {
+            if ($timer->isPeriodic()) {
+                $actualTimer = $this->loop->addPeriodicTimer($timer->getInterval(), $timer->getCallback());
+            } else {
+                $actualTimer = $this->loop->addTimer($timer->getInterval(), $timer->getCallback());
+            }
+
+            $actualTimer->setData($timer->getData());
+            $timer->setTimer($actualTimer);
+        }
+
+        $this->timers = [];
+    }
+
+    private function ensureLoop(): void
+    {
+        if (!$this->loop) {
+            $this->loop = $this->factory->create();
+
+            $this->addDeferredTimers();
+        }
     }
 
     public function addReadStream($stream, callable $listener)
@@ -58,24 +92,43 @@ class DeferredLoop implements LoopInterface
         // TODO: Implement removeStream() method.
     }
 
-    public function addTimer($interval, callable $callback)
+    public function addTimer($interval, callable $callback): TimerInterface
     {
-        // TODO: Implement addTimer() method.
+        if ($this->loop) {
+            return $this->loop->addTimer($interval, $callback);
+        }
+
+        $timer = new DeferredTimer($this, $interval, $callback, false);
+        $this->timers[] = $timer;
+
+        return $timer;
     }
 
-    public function addPeriodicTimer($interval, callable $callback)
+    public function addPeriodicTimer($interval, callable $callback): TimerInterface
     {
-        // TODO: Implement addPeriodicTimer() method.
+        if ($this->loop) {
+            return $this->loop->addPeriodicTimer($interval, $callback);
+        }
+
+        $timer = new DeferredTimer($this, $interval, $callback, true);
+        $this->timers[] = $timer;
+
+        return $timer;
     }
 
     public function cancelTimer(TimerInterface $timer)
     {
-        // TODO: Implement cancelTimer() method.
+        $index = \array_search($timer, $this->timers, true);
+
+        if ($index !== false) {
+            unset($this->timers[$index]);
+        }
     }
 
     public function isTimerActive(TimerInterface $timer)
     {
-        // TODO: Implement isTimerActive() method.
+        $index = \array_search($timer, $this->timers, true);
+        return ($index !== false);
     }
 
     public function nextTick(callable $listener)
@@ -90,16 +143,20 @@ class DeferredLoop implements LoopInterface
 
     public function tick()
     {
-        // TODO: Implement tick() method.
+        $this->ensureLoop();
+        $this->loop->tick();
     }
 
     public function run()
     {
-        // TODO: Implement run() method.
+        $this->ensureLoop();
+        $this->loop->run();
     }
 
     public function stop()
     {
-        // TODO: Implement stop() method.
+        if ($this->loop) {
+            $this->loop->stop();
+        }
     }
 }
