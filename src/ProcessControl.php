@@ -23,4 +23,44 @@ class ProcessControl
     {
         return \pcntl_fork();
     }
+
+    public function waitpid(int $pid, int &$status): int
+    {
+        return \pcntl_waitpid($pid, $status, \WNOHANG);
+    }
+
+    public function wifexit(int $status): bool
+    {
+        return \pcntl_wifexited($status);
+    }
+
+    public function wifsignaled(int $status): bool
+    {
+        return \pcntl_wifsignaled($status);
+    }
+
+    public function wexitstatus(int $status): int
+    {
+        return \pcntl_wexitstatus($status);
+    }
+
+    public function wtermsig(int $status): int
+    {
+        return \pcntl_wtermsig($status);
+    }
+
+    public function terminate(int $exitCode = 0): void
+    {
+        exit($exitCode);
+    }
+
+    public function dispatchSignals()
+    {
+        \pcntl_signal_dispatch();
+    }
+
+    public function signal(int $signalNumber, callable $handler, bool $restartSyscalls = true)
+    {
+        \pcntl_signal($signalNumber, $handler, $restartSyscalls);
+    }
 }
