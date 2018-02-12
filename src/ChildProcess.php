@@ -8,7 +8,7 @@
 namespace React\MultiProcess;
 
 use Evenement\EventEmitter;
-use React\EventLoop\LoopInterface;
+use Evenement\EventEmitterInterface;
 
 class ChildProcess extends EventEmitter
 {
@@ -42,30 +42,42 @@ class ChildProcess extends EventEmitter
      */
     private $termSignal = null;
 
-    public function __construct(int $pid, Server $server, ProcessControl $pcntl)
+    public function __construct(int $pid, EventEmitterInterface $server, ProcessControl $pcntl)
     {
         $this->pid = $pid;
         $this->pcntl = $pcntl;
 
-        $server->on('sigchld', [$this, 'signal']);
+        $server->on('sigchld', [$this, 'updateStatus']);
     }
 
-    public function signal(): void
+    /**
+     * Handle signalling of this child
+     */
+    public function updateStatus(): void
     {
-        $status = 0;
-
-        if ($this->pcntl->waitpid($this->pid, $status) <= 0) {
+        if (!$this->isRunning()) {
             return;
         }
+
+        $result = $this->pcntl->waitpid($this->pid);
+        if ($result->result <= 0) {
+            return;
+        }
+
+        $status = $result->status;
 
         if ($this->pcntl->wifexit($status)) {
             $this->exited = true;
             $this->exitCode = $this->pcntl->wexitstatus($status);
+
+            $this->emit('exit', [$this]);
         }
 
         if ($this->pcntl->wifsignaled($status)) {
             $this->signaled = true;
             $this->termSignal = $this->pcntl->wtermsig($status);
+
+            $this->emit('signal', [$this]);
         }
     }
 
@@ -88,7 +100,7 @@ class ChildProcess extends EventEmitter
     }
 
     /**
-     * @return nulll|int
+     * @return null|int
      */
     public function getExitCode(): ?int
     {
@@ -102,5 +114,4 @@ class ChildProcess extends EventEmitter
     {
         return $this->termSignal;
     }
-
 }

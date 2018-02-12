@@ -29,7 +29,7 @@ class Server extends EventEmitter implements ServerInterface
     private $loop;
 
     /**
-     * @var int[]
+     * @var ChildProcess[]
      */
     private $children;
 
@@ -58,31 +58,6 @@ class Server extends EventEmitter implements ServerInterface
 
         $server->on('error', function($error) {
             $this->emit('error', [$error]);
-        });
-    }
-
-    private function checkChildren()
-    {
-        foreach ($this->children as $pid) {
-            $exited = false;
-
-            if ($this->pcntl->wifsignaled($pid)) {
-                $exited = true;
-                $signal = $this->pcntl->wtermsig($pid);
-                $this->loop->nextTick(function() use ($pid) {
-                    $this->emit('childsignal', [$pid, $ter])
-                })
-            } else if ($this->pcntl->wifexit($pid)) {
-                $exited = true;
-            }
-        }
-
-    }
-
-    private function initParentProcess()
-    {
-        $this->on('sigchld', function() {
-            $this->checkChildren();
         });
     }
 
@@ -120,10 +95,16 @@ class Server extends EventEmitter implements ServerInterface
                 continue;
             }
 
-            $this->children[] = $pid;
+            $this->children[] = new ChildProcess($pid, $this, $this->pcntl);
         }
+    }
 
-        $this->initParentProcess();
+    /**
+     * @return iterable|ChildProcess[]
+     */
+    public function getChildren(): iterable
+    {
+        return $this->children;
     }
 
     public function getAddress()
