@@ -9,6 +9,7 @@ namespace React\MultiProcess;
 
 use Evenement\EventEmitter;
 use React\EventLoop\LoopInterface;
+use React\MultiProcess\EventLoop\ForkableLoopInterface;
 use React\Socket\ConnectionInterface;
 use React\Socket\ServerInterface;
 use Throwable;
@@ -35,25 +36,26 @@ class Server extends EventEmitter implements ServerInterface
 
     public function __construct(
         ServerInterface $server,
-        LoopInterface $loop,
+        ForkableLoopInterface $loop,
         ProcessControl $pcntl = null
     ) {
 
         $this->server = $server;
-        $this->pcntl = $pcntl? : new ProcessControl();
         $this->loop = $loop;
+        $this->pcntl = $pcntl? : new ProcessControl();
 
         $server->pause();
+
         $loop->addPeriodicTimer(0.1, function() {
             $this->pcntl->dispatchSignals();
         });
 
-        $this->pcntl->signal(\SIGCHLD, function($signal) {
+        $this->pcntl->signal(\SIGCHLD, function() {
             $this->emit('sigchld');
         });
 
         $server->on('connect', function(ConnectionInterface $connection) {
-            $this->emit([$connection]);
+            $this->emit('connect', [$connection]);
         });
 
         $server->on('error', function($error) {
@@ -73,11 +75,12 @@ class Server extends EventEmitter implements ServerInterface
     }
 
     /**
-     * @param callable $handler
-     * @param int $numChildren
+     * @param callable $handler The handler that will be invoked in the child process.
+     *      When this method returns the process will exit.
+     * @param int $numChildren  The number of child processes to spawn
      * @return void Returns in the parent process, the child will not return, but exit.
      */
-    public function fork(callable $handler, int $numChildren = 1): ?array
+    public function fork(callable $handler, int $numChildren = 1): void
     {
         if ($numChildren < 1) {
             $numChildren = 1;
@@ -89,6 +92,7 @@ class Server extends EventEmitter implements ServerInterface
             $pid = $this->pcntl->fork();
 
             if ($pid === 0) {
+                $this->loop->reinit();
                 $this->handleChild($handler);
             } else if ($pid < 0) {
                 // TODO: This is an error!
