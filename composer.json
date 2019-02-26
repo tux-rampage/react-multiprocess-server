@@ -9,8 +9,18 @@
             "email": "tux-rampage@users.noreply.github.com"
         }
     ],
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/tux-rampage/event-loop.git"
+        }
+    ],
     "require": {
-        "react/socket": "^0.8.9"
+        "php": "7.2",
+        "ext-pcntl": "*",
+        "ext-posix": "*",
+        "react/socket": "^1.2.0",
+        "react/event-loop": "dev-fork-support as 1.2.0"
     },
     "autoload": {
         "psr-4": {
@@ -23,6 +33,6 @@
         }
     },
     "require-dev": {
-        "phpunit/phpunit": "^6.5"
+        "phpunit/phpunit": "^8.0"
     }
 }

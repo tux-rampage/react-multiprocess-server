@@ -9,6 +9,9 @@ namespace React\MultiProcess;
 
 use Evenement\EventEmitter;
 use Evenement\EventEmitterInterface;
+use function is_int;
+use function pcntl_fork;
+use RuntimeException;
 
 class ChildProcess extends EventEmitter
 {
@@ -16,11 +19,6 @@ class ChildProcess extends EventEmitter
      * @var int
      */
     private $pid;
-
-    /**
-     * @var ProcessControl
-     */
-    private $pcntl;
 
     /**
      * @var bool
@@ -42,12 +40,25 @@ class ChildProcess extends EventEmitter
      */
     private $termSignal = null;
 
-    public function __construct(int $pid, EventEmitterInterface $server, ProcessControl $pcntl)
+    private function __construct(int $pid)
     {
         $this->pid = $pid;
-        $this->pcntl = $pcntl;
+    }
 
-        $server->on('sigchld', [$this, 'updateStatus']);
+    public static function create(callable $task) : self
+    {
+        $pid = pcntl_fork();
+
+        if ($pid < 0) {
+            throw new RuntimeException('Failed to create process');
+        }
+
+        if ($pid === 0) {
+            $result = $task();
+            exit(is_int($result) ? $result : 0);
+        }
+
+        return new self($pid);
     }
 
     /**
