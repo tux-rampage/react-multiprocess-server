@@ -20,10 +20,7 @@ class Server extends EventEmitter implements ServerInterface
      * @var ServerInterface
      */
     private $server;
-    /**
-     * @var ProcessControl
-     */
-    private $pcntl;
+
     /**
      * @var LoopInterface
      */
@@ -32,7 +29,7 @@ class Server extends EventEmitter implements ServerInterface
     /**
      * @var ChildProcess[]
      */
-    private $children;
+    private $workers;
 
     public function __construct(
         ServerInterface $server,
@@ -86,7 +83,7 @@ class Server extends EventEmitter implements ServerInterface
             $numChildren = 1;
         }
 
-        $this->children = [];
+        $this->workers = [];
 
         for ($i = 0; $i < $numChildren; $i++) {
             $pid = $this->pcntl->fork();
@@ -99,16 +96,16 @@ class Server extends EventEmitter implements ServerInterface
                 continue;
             }
 
-            $this->children[] = new ChildProcess($pid, $this, $this->pcntl);
+            $this->workers[] = new ChildProcess($pid, $this, $this->pcntl);
         }
     }
 
     /**
      * @return iterable|ChildProcess[]
      */
-    public function getChildren(): iterable
+    public function getWorkers(): iterable
     {
-        return $this->children;
+        return $this->workers;
     }
 
     public function getAddress()

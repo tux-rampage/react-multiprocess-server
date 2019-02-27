@@ -8,12 +8,13 @@
 namespace React\MultiProcess;
 
 use Evenement\EventEmitter;
-use Evenement\EventEmitterInterface;
-use function is_int;
-use function pcntl_fork;
 use RuntimeException;
 
-class ChildProcess extends EventEmitter
+use function is_int;
+use function pcntl_fork;
+
+
+final class ChildProcess extends EventEmitter
 {
     /**
      * @var int
@@ -21,28 +22,14 @@ class ChildProcess extends EventEmitter
     private $pid;
 
     /**
-     * @var bool
+     * @var ProcessStatus
      */
-    private $exited = false;
-
-    /**
-     * @var bool
-     */
-    private $signaled = false;
-
-    /**
-     * @var null|int
-     */
-    private $exitCode = null;
-
-    /**
-     * @var null|int
-     */
-    private $termSignal = null;
+    private $status;
 
     private function __construct(int $pid)
     {
         $this->pid = $pid;
+        $this->status = ProcessStatus::fetch($pid);
     }
 
     public static function create(callable $task) : self
@@ -62,67 +49,35 @@ class ChildProcess extends EventEmitter
     }
 
     /**
-     * Handle signalling of this child
+     * Poll the current process status
      */
-    public function updateStatus(): void
+    public function pollStatus() : void
     {
-        if (!$this->isRunning()) {
+        if ($this->status->isTerminated()) {
             return;
         }
 
-        $result = $this->pcntl->waitpid($this->pid);
-        if ($result->result <= 0) {
-            return;
-        }
-
-        $status = $result->status;
-
-        if ($this->pcntl->wifexit($status)) {
-            $this->exited = true;
-            $this->exitCode = $this->pcntl->wexitstatus($status);
-
-            $this->emit('exit', [$this]);
-        }
-
-        if ($this->pcntl->wifsignaled($status)) {
-            $this->signaled = true;
-            $this->termSignal = $this->pcntl->wtermsig($status);
-
-            $this->emit('signal', [$this]);
-        }
+        $this->status = ProcessStatus::fetch($this->pid);
     }
 
-    public function isExited(): bool
+    public function getStatus(): ProcessStatus
     {
-        return $this->exited;
+        return $this->status;
     }
 
-    public function isSignaled(): bool
+    public function isRunning() : bool
     {
-        return $this->signaled;
+        $this->pollStatus();
+        return !$this->status->isTerminated();
     }
 
-    /**
-     * @return bool
-     */
-    public function isRunning(): bool
-    {
-        return !$this->exited && !$this->signaled;
-    }
-
-    /**
-     * @return null|int
-     */
     public function getExitCode(): ?int
     {
-        return $this->exitCode;
+        return $this->status->getExitCode();
     }
 
-    /**
-     * @return null|int
-     */
     public function getTermSignal(): ?int
     {
-        return $this->termSignal;
+        return $this->status->getTermSignal();
     }
 }

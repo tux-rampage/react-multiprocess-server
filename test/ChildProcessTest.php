@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Prophecy\Prophecy\ObjectProphecy;
 use React\MultiProcess\ChildProcess;
 use React\MultiProcess\ProcessControl;
-use React\MultiProcess\WaitPIDResult;
+use React\MultiProcess\ProcessStatus;
 
 class ChildProcessTest extends TestCase
 {
@@ -36,11 +36,11 @@ class ChildProcessTest extends TestCase
         $subscriber = function() { $this->fail('The subscriber must not be invoked'); };
         $subject = new ChildProcess($pid, $server->reveal(), $pcntl->reveal());
 
-        $pcntl->__call('waitpid', [$pid])->willReturn(new WaitPIDResult($result, 0));
+        $pcntl->__call('waitpid', [$pid])->willReturn(new ProcessStatus($result, 0));
 
         $subject->on('signal', $subscriber);
         $subject->on('exit', $subscriber);
-        $subject->updateStatus();
+        $subject->pollStatus();
 
         $this->assertTrue($subject->isRunning());
         $this->assertFalse($subject->isSignaled());
@@ -57,13 +57,13 @@ class ChildProcessTest extends TestCase
         $subject = new ChildProcess($pid, $server->reveal(), $pcntl->reveal());
         $subscriber = function() { $this->fail('The subscriber must not be invoked'); };
 
-        $pcntl->__call('waitpid', [$pid])->willReturn(new WaitPIDResult($pid, $status));
+        $pcntl->__call('waitpid', [$pid])->willReturn(new ProcessStatus($pid, $status));
         $pcntl->__call('wifsignaled', [$status])->willReturn(false);
         $pcntl->__call('wifexit', [$status])->willReturn(false);
 
         $subject->on('signal', $subscriber);
         $subject->on('exit', $subscriber);
-        $subject->updateStatus();
+        $subject->pollStatus();
 
         $this->assertTrue($subject->isRunning());
         $this->assertFalse($subject->isSignaled());
@@ -86,7 +86,7 @@ class ChildProcessTest extends TestCase
         };
 
         $pcntl->__call('waitpid', [$pid])
-            ->willReturn(new WaitPIDResult($pid, $status));
+            ->willReturn(new ProcessStatus($pid, $status));
 
         $pcntl->__call('wifexit', [$status])->willReturn(true);
         $pcntl->__call('wifsignaled', [$status])->willReturn(false);
@@ -96,7 +96,7 @@ class ChildProcessTest extends TestCase
         $this->assertTrue($subject->isRunning());
 
         $subject->on('exit', $subscriber);
-        $subject->updateStatus();
+        $subject->pollStatus();
 
         $this->assertTrue($subject->isExited());
         $this->assertFalse($subject->isRunning());
@@ -120,7 +120,7 @@ class ChildProcessTest extends TestCase
         };
 
         $pcntl->__call('waitpid', [$pid])
-            ->willReturn(new WaitPIDResult($pid, $status));
+            ->willReturn(new ProcessStatus($pid, $status));
 
         $pcntl->__call('wifsignaled', [$status])->willReturn(true);
         $pcntl->__call('wifexit', [$status])->willReturn(false);
@@ -130,7 +130,7 @@ class ChildProcessTest extends TestCase
         $this->assertTrue($subject->isRunning());
 
         $subject->on('signal', $subscriber);
-        $subject->updateStatus();
+        $subject->pollStatus();
 
         $this->assertTrue($subject->isSignaled());
         $this->assertFalse($subject->isRunning());

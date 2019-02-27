@@ -24,12 +24,12 @@ class ProcessControl
         return \pcntl_fork();
     }
 
-    public function waitpid(int $pid): WaitPIDResult
+    public function waitpid(int $pid): ProcessStatus
     {
         $status = 0;
         $result = \pcntl_waitpid($pid, $status, \WNOHANG);
 
-        return new WaitPIDResult($result, $status);
+        return new ProcessStatus($result, $status);
     }
 
     public function wifexit(int $status): bool
